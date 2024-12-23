@@ -5,48 +5,49 @@ from collections import defaultdict
 class FlightNetwork:
     def __init__(self):
         """
-        Inizializza una rete di voli con:
-        - Nodi (aeroporti)
-        - Archi (connessioni tra aeroporti)
-        - Dizionari per archi entranti e uscenti
+        Initializes a flight network with:
+        - Nodes (airports)
+        - Edges (connections between airports)
+        - Dictionaries for incoming and outgoing edges
         """
-        self.nodes: Set[str] = set()  # Insieme degli aeroporti
-        self.edges: Set[Tuple[str, str]] = set()  # Insieme delle connessioni
-        self.in_edges: Dict[str, List[str]] = defaultdict(list)  # Archi entranti
-        self.out_edges: Dict[str, List[str]] = defaultdict(list)  # Archi uscenti
+        self.nodes: Set[str] = set()  # Set of airports
+        self.edges: Set[Tuple[str, str]] = set()  # Set of connections
+        self.in_edges: Dict[str, List[str]] = defaultdict(list)  # Incoming edges
+        self.out_edges: Dict[str, List[str]] = defaultdict(list)  # Outgoing edges
 
     def add_nodes_and_edges(self, origin_airports: pd.Series, destination_airports: pd.Series) -> None:
         """
-        Aggiunge nodi (aeroporti) e archi (voli) alla rete.
-        :param origin_airports: Serie Pandas contenente gli aeroporti di origine.
-        :param destination_airports: Serie Pandas contenente gli aeroporti di destinazione.
+        Adds nodes (airports) and edges (flights) to the network.
+        :param origin_airports: Pandas Series containing origin airports.
+        :param destination_airports: Pandas Series containing destination airports.
         """
-        # Aggiunge nodi unici
+        # Add unique nodes
         self.nodes.update(origin_airports)
         self.nodes.update(destination_airports)
         
-        # Aggiunge archi tra coppie di aeroporti
+        # Add edges between pairs of airports
         self.edges.update(zip(origin_airports, destination_airports))
         
-        # Aggiorna i dizionari di archi entranti e uscenti
+        # Update dictionaries for incoming and outgoing edges
         for origin, destination in zip(origin_airports, destination_airports):
             self.in_edges[destination].append(origin)
             self.out_edges[origin].append(destination)
 
     def in_degree(self, node: str) -> int:
         """
-        Calcola il numero di archi entranti per un nodo.
-        :param node: Nome del nodo (aeroporto)
-        :return: Numero di archi entranti
+        Calculates the number of incoming edges for a node.
+        :param node: Name of the node (airport)
+        :return: Number of incoming edges
         """
         return len(self.in_edges[node])
 
     def out_degree(self, node: str) -> int:
         """
-        Calcola il numero di archi uscenti per un nodo.
-        :param node: Nome del nodo (aeroporto)
-        :return: Numero di archi uscenti
+        Calculates the number of outgoing edges for a node.
+        :param node: Name of the node (airport)
+        :return: Number of outgoing edges
         """
         return len(self.out_edges[node])
+
 
 
