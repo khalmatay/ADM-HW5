@@ -1,37 +1,35 @@
+import matplotlib.pyplot as plt
+import networkx as nx
+
+
 def minimum_edge_cut(graph):
-    """
-    Removes the minimum number of edges to disconnect the graph into two subgraphs.
-
-    Args:
-        graph (networkx.Graph): The flight network graph.
-
-    Returns:
-        list: The edges removed to disconnect the graph.
-        networkx.Graph: The modified graph with the edges removed.
-    """
-    # Ensure the graph is connected before proceeding
     if not nx.is_connected(graph):
         print("The graph is already disconnected.")
-        return [], graph
+        return [], list(nx.connected_components(graph))
 
-    min_cut_edges = []
-    original_edges = list(graph.edges)
+    # Convert to directed graph with uniform capacities
+    directed_graph = nx.DiGraph()
+    for u, v in graph.edges:
+        directed_graph.add_edge(u, v, capacity=1)
+        directed_graph.add_edge(v, u, capacity=1)
 
-    # Iterate through subsets of edges
-    for edge in original_edges:
-        # Create a copy of the graph to test disconnection
-        temp_graph = graph.copy()
-        temp_graph.remove_edge(*edge)
+    # Use NetworkX's built-in minimum_cut function
+    source = list(directed_graph.nodes)[0]  # Select an arbitrary source node
+    sink = list(directed_graph.nodes)[-1]  # Select an arbitrary sink node
 
-        # Check if removing the edge disconnects the graph
-        if not nx.is_connected(temp_graph):
-            min_cut_edges.append(edge)
-            break  # Stop as soon as the minimum edge cut is found
+    cut_value, partition = nx.minimum_cut(directed_graph, source, sink, capacity="capacity")
+    reachable, non_reachable = partition
 
-    # Remove the edges in the cut set
-    graph.remove_edges_from(min_cut_edges)
+    # Find the edges in the minimum cut
+    cut_edges = [(u, v) for u in reachable for v in directed_graph.neighbors(u) if v in non_reachable]
 
-    return min_cut_edges, graph
+    # Remove the edges in the cut set from the original graph
+    graph.remove_edges_from(cut_edges)
+
+    # Get the resulting connected components as subgraphs
+    subgraphs = [graph.subgraph(c).copy() for c in nx.connected_components(graph)]
+
+    return cut_edges, subgraphs
 
 
 def visualize_graph(graph, title):
@@ -49,3 +47,16 @@ def visualize_graph(graph, title):
     )
     plt.title(title)
     plt.show()
+
+
+def visualize_subgraphs(subgraphs, title_prefix):
+    """
+    Visualizes each subgraph in a list of subgraphs.
+
+    Args:
+        subgraphs (list): List of subgraphs to visualize.
+        title_prefix (str): Prefix for the plot titles.
+    """
+    for i, subgraph in enumerate(subgraphs):
+        title = f"{title_prefix} - Subgraph {i + 1}"
+        visualize_graph(subgraph, title)
