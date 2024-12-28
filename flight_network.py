@@ -48,3 +48,4 @@ class FlightNetwork:
         :return: Number of outgoing edges
         """
         return len(self.out_edges[node])
+
