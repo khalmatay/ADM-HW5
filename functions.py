@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-
+import pandas as pd
+import numpy as np
 
 def minimum_cut(graph):
     """
@@ -116,7 +117,6 @@ def visualize_subgraphs(graph, cut_edges, title):
     plt.show()
 
 
-
 def compute_degree_centrality(graph):
     """
     Computes the degree centrality for all nodes in a NetworkX graph.
@@ -132,10 +132,9 @@ def compute_degree_centrality(graph):
 
     for node in graph.nodes:
         centrality[node] = graph.degree[node] / n if n > 0 else 0  # Normalized degree centrality
-    
+
     return centrality
 
-from collections import deque
 
 def compute_closeness_centrality(graph):
     """
@@ -147,6 +146,7 @@ def compute_closeness_centrality(graph):
     Returns:
     dict: A dictionary with nodes as keys and closeness centrality as values.
     """
+
     def bfs_shortest_path_lengths(start_node):
         """Helper function to compute shortest path lengths from a start node using BFS."""
         visited = {start_node: 0}  # Store distances from start_node
@@ -181,7 +181,9 @@ def compute_closeness_centrality(graph):
 
     return centrality
 
-from collections import deque, defaultdict
+
+from collections import deque
+
 
 def compute_betweenness_centrality(graph):
     """
@@ -193,6 +195,7 @@ def compute_betweenness_centrality(graph):
     Returns:
     dict: A dictionary with nodes as keys and betweenness centrality as values.
     """
+
     def bfs_paths_and_counts(start_node):
         """
         Perform BFS to calculate shortest paths and path counts.
@@ -247,6 +250,7 @@ def compute_betweenness_centrality(graph):
         centrality[node] /= (num_nodes - 1) * (num_nodes - 2)
 
     return centrality
+
 
 def compute_pagerank(graph, damping_factor=0.85, max_iterations=100, tolerance=1e-6):
     """
@@ -329,3 +333,103 @@ def compute_single_source_dijkstra(graph, source, target):
     # If no path is found
     return float('inf'), []
 
+
+def create_graph_with_distance(df):
+    G = nx.Graph()
+    for _, row in df.iterrows():
+        origin = row["Origin_city"]
+        destination = row["Destination_city"]
+        distance = row["Distance"]
+
+        # Add edge with distance as the weight
+        if not pd.isna(distance):
+            G.add_edge(origin, destination, weight=distance)
+    return G
+
+
+def louvain_algorithm_numpy(graph):
+    """Louvain community detection using NumPy for performance."""
+    # Convert graph to adjacency matrix
+    nodes = list(graph.nodes())
+    node_indices = {node: i for i, node in enumerate(nodes)}
+    adjacency_matrix = nx.to_numpy_array(graph, nodelist=nodes, weight="weight")
+
+    # Initialize communities: each node starts in its own community
+    num_nodes = len(nodes)
+    communities = np.arange(num_nodes)
+
+    def modularity_gain(i, j, adjacency_matrix, communities, m):
+        """Compute the modularity gain for moving node i to community of node j."""
+        k_i = adjacency_matrix[i].sum()
+        k_j = adjacency_matrix[j].sum()
+        delta_q = adjacency_matrix[i, j] - (k_i * k_j) / (2 * m)
+        return delta_q
+
+    # Total weight of edges in the graph
+    m = adjacency_matrix.sum() / 2
+
+    while True:
+        improvement = False
+
+        for i in range(num_nodes):
+            current_community = communities[i]
+            best_community = current_community
+            max_gain = 0
+
+            # Check modularity gain for moving to neighboring communities
+            for j in range(num_nodes):
+                if i != j and adjacency_matrix[i, j] > 0:
+                    gain = modularity_gain(i, j, adjacency_matrix, communities, m)
+                    if gain > max_gain:
+                        max_gain = gain
+                        best_community = communities[j]
+
+            # Move to the best community if it improves modularity
+            if best_community != current_community:
+                communities[i] = best_community
+                improvement = True
+
+        if not improvement:
+            break
+
+    # Normalize community IDs and group nodes by community
+    unique_communities = {community: idx for idx, community in enumerate(np.unique(communities))}
+    community_dict = {unique_communities[community]: [] for community in unique_communities}
+
+    for node, community in zip(nodes, communities):
+        community_dict[unique_communities[community]].append(node)
+
+    return community_dict
+
+
+def analyze_flight_network(graph, city1, city2):
+    """Analyze the flight network and provide community insights."""
+    # Detect communities
+    communities = louvain_algorithm_numpy(graph)
+
+    # Output total number of communities
+    print(f"Total number of communities: {len(communities)}")
+    for community_id, cities in communities.items():
+        print(f"Community {community_id}: {cities}")
+
+    # Check if city1 and city2 are in the same community
+    same_community = any(city1 in cities and city2 in cities for cities in communities.values())
+    print(f"Cities {city1} and {city2} are in the same community: {same_community}")
+
+    # Visualize the graph with communities
+    visualize_communities(graph, communities)
+
+
+def visualize_communities(graph, communities):
+    """Visualize the graph with different colors for each community."""
+    pos = nx.spring_layout(graph)
+    color_map = []
+    node_to_community = {node: community_id for community_id, nodes in communities.items() for node in nodes}
+
+    for node in graph.nodes():
+        color_map.append(node_to_community[node])
+
+    nx.draw(
+        graph, pos, node_color=color_map, with_labels=True, cmap=plt.cm.rainbow, node_size=500
+    )
+    plt.show()
