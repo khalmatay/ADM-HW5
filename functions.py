@@ -120,35 +120,18 @@ def visualize_subgraphs(graph, cut_edges, title):
 def compute_degree_centrality(graph):
     """
     Computes the degree centrality for all nodes in a NetworkX graph.
-
-    Parameters:
-    graph (networkx.Graph or networkx.DiGraph): The graph object.
-
-    Returns:
-    dict: A dictionary where keys are nodes and values are their degree centrality.
     """
-    centrality = {}
-    n = len(graph) - 1  # Total number of other nodes in the graph (for normalization)
-
-    for node in graph.nodes:
-        centrality[node] = graph.degree[node] / n if n > 0 else 0  # Normalized degree centrality
-    
-    return centrality
+    n = len(graph)  # Total number of nodes
+    return {node: graph.degree[node] / (n - 1) for node in graph.nodes}
 
 from collections import deque
 
 def compute_closeness_centrality(graph):
     """
-    Computes closeness centrality for all nodes in a NetworkX graph.
-
-    Parameters:
-    graph (nx.Graph or nx.DiGraph): The graph.
-
-    Returns:
-    dict: A dictionary with nodes as keys and closeness centrality as values.
+    Computes closeness centrality for all nodes in a graph.
     """
     def bfs_shortest_path_lengths(start_node):
-        """Helper function to compute shortest path lengths from a start node using BFS."""
+        """Compute shortest path lengths from a start node using BFS."""
         visited = {start_node: 0}  # Store distances from start_node
         queue = deque([start_node])  # Queue for BFS
 
@@ -181,85 +164,68 @@ def compute_closeness_centrality(graph):
 
     return centrality
 
+
 from collections import deque, defaultdict
+
+def bfs_paths_and_counts(graph, start_node):
+    """
+    Perform BFS to calculate shortest paths, path counts, and predecessors for a given start node.
+    """
+    distances = {node: float('inf') for node in graph.nodes}  # Initialize distances to infinity
+    paths = {node: 0 for node in graph.nodes}  # Initialize path counts to 0
+    predecessors = {node: [] for node in graph.nodes}  # Initialize predecessors as empty lists
+
+    # BFS initialization
+    distances[start_node] = 0  # Distance to itself is 0
+    paths[start_node] = 1  # One path to itself
+    queue = deque([start_node])  # Start BFS from the start_node
+
+    while queue:
+        current_node = queue.popleft()
+        current_distance = distances[current_node]
+
+        for neighbor in graph.neighbors(current_node):
+            # If visiting the neighbor for the first time
+            if distances[neighbor] == float('inf'):
+                distances[neighbor] = current_distance + 1
+                queue.append(neighbor)
+
+            # If this is part of a shortest path
+            if distances[neighbor] == current_distance + 1:
+                paths[neighbor] += paths[current_node]
+                predecessors[neighbor].append(current_node)
+
+    return distances, paths, predecessors
+
 
 def compute_betweenness_centrality(graph):
     """
-    Computes betweenness centrality for all nodes in a NetworkX graph.
-
-    Parameters:
-    graph (nx.Graph or nx.DiGraph): The graph.
-
-    Returns:
-    dict: A dictionary with nodes as keys and betweenness centrality as values.
+    Computes the betweenness centrality for all nodes in a graph.
     """
-    def bfs_paths_and_counts(start_node):
-        """
-        Perform BFS to calculate shortest paths and path counts.
-        Returns:
-        - distances: Shortest distance from start_node to every other node.
-        - paths: Number of shortest paths to each node from start_node.
-        - predecessors: Predecessor nodes for each node in the shortest path tree.
-        """
-        distances = {node: float('inf') for node in graph}
-        paths = {node: 0 for node in graph}
-        predecessors = {node: [] for node in graph}
-
-        distances[start_node] = 0
-        paths[start_node] = 1
-        queue = deque([start_node])
-
-        while queue:
-            current = queue.popleft()
-            for neighbor in graph.neighbors(current):
-                # If this is the first time visiting the neighbor
-                if distances[neighbor] == float('inf'):
-                    distances[neighbor] = distances[current] + 1
-                    queue.append(neighbor)
-                # If this is another shortest path
-                if distances[neighbor] == distances[current] + 1:
-                    paths[neighbor] += paths[current]
-                    predecessors[neighbor].append(current)
-
-        return distances, paths, predecessors
-
-    centrality = {node: 0.0 for node in graph}  # Initialize centrality for all nodes
-
+    centrality = {node: 0.0 for node in graph}
     for source in graph:
-        # Compute shortest paths and path counts from the source
-        distances, paths, predecessors = bfs_paths_and_counts(source)
-
-        # Dependency accumulation
+        shortest_paths, path_counts, predecessors = bfs_paths_and_counts(graph, source)
         dependency = {node: 0.0 for node in graph}
-        nodes_by_distance = sorted(distances.keys(), key=lambda x: -distances[x])
+        nodes_by_distance = sorted(shortest_paths.keys(), key=lambda x: -shortest_paths[x])
 
         for node in nodes_by_distance:
             for predecessor in predecessors[node]:
-                ratio = paths[predecessor] / paths[node]
+                ratio = path_counts[predecessor] / path_counts[node]
                 dependency[predecessor] += ratio * (1 + dependency[node])
             if node != source:
                 centrality[node] += dependency[node]
 
-    # Normalize for undirected graphs (divide by 2 for undirected)
+    # Normalize
     num_nodes = len(graph)
+    normalization_factor = (num_nodes - 1) * (num_nodes - 2)
     for node in centrality:
-        centrality[node] /= 2.0 if not isinstance(graph, nx.DiGraph) else 1.0
-        centrality[node] /= (num_nodes - 1) * (num_nodes - 2)
+        centrality[node] /= normalization_factor if normalization_factor > 0 else 1
 
     return centrality
 
 def compute_pagerank(graph, damping_factor=0.85, max_iterations=100, tolerance=1e-6):
     """
-    Computes the PageRank of nodes in a NetworkX graph.
-
-    Parameters:
-    graph (nx.Graph or nx.DiGraph): The graph.
-    damping_factor (float): Probability of following a link (default 0.85).
-    max_iterations (int): Maximum number of iterations (default 100).
-    tolerance (float): Convergence tolerance (default 1e-6).
-
-    Returns:
-    dict: A dictionary with nodes as keys and PageRank as values.
+    Computes the PageRank of nodes in a graph.
     """
     # Initialize variables
     num_nodes = len(graph)
@@ -287,17 +253,7 @@ def compute_pagerank(graph, damping_factor=0.85, max_iterations=100, tolerance=1
 
 def compute_single_source_dijkstra(graph, source, target):
     """
-    Computes the shortest path using Dijkstra's algorithm for a NetworkX DiGraph.
-
-    Args:
-    - graph: A NetworkX DiGraph.
-    - source: Starting node.
-    - target: Target node.
-
-    Returns:
-    - A tuple (distance, path) where:
-      - distance: Total weight of the shortest path.
-      - path: List of nodes in the shortest path.
+    Computes the shortest path using Dijkstra's algorithm for a graph.
     """
     import heapq
 
