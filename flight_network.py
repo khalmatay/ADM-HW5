@@ -48,26 +48,3 @@ class FlightNetwork:
         :return: Number of outgoing edges
         """
         return len(self.out_edges[node])
-
-
-
-
-    def create_subgraph(self, sampled_nodes: List[str]) -> 'FlightNetwork':
-        """
-        Creates a subgraph from the sampled nodes.
-        :param sampled_nodes: List of sampled node (airport) names.
-        :return: A new FlightNetwork instance representing the subgraph.
-        """
-        subgraph = FlightNetwork()
-        
-        # Add the sampled nodes to the subgraph
-        subgraph.nodes.update(sampled_nodes)
-        
-        # Filter edges to include only those that have both ends in the sampled nodes
-        for origin, destination in self.edges:
-            if origin in sampled_nodes and destination in sampled_nodes:
-                subgraph.edges.add((origin, destination))
-                subgraph.out_edges[origin].append(destination)
-                subgraph.in_edges[destination].append(origin)
-        
-        return subgraph
