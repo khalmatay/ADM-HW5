@@ -125,102 +125,82 @@ def compute_degree_centrality(graph):
     return {node: graph.degree[node] / (n - 1) for node in graph.nodes}
 
 from collections import deque
+from collections import deque
 
-def compute_closeness_centrality(graph):
+def bfs(graph, start_node, return_paths=False):
     """
-    Computes closeness centrality for all nodes in a graph.
+    Perform BFS to compute shortest path distances, and optionally path counts and predecessors(for the Betweenes Centrality).
     """
-    def bfs_shortest_path_lengths(start_node):
-        """Compute shortest path lengths from a start node using BFS."""
-        visited = {start_node: 0}  # Store distances from start_node
-        queue = deque([start_node])  # Queue for BFS
-
-        while queue:
-            current = queue.popleft()
-            current_distance = visited[current]
-
-            for neighbor in graph.neighbors(current):  # Use graph.neighbors() for NetworkX graphs
-                if neighbor not in visited:
-                    visited[neighbor] = current_distance + 1
-                    queue.append(neighbor)
-
-        return visited  # Contains shortest path lengths from start_node to reachable nodes
-
-    centrality = {}
-    num_nodes = len(graph)  # Total number of nodes in the graph
-
-    for node in graph.nodes:
-        shortest_paths = bfs_shortest_path_lengths(node)
-        reachable_nodes = len(shortest_paths) - 1  # Exclude the node itself
-
-        if reachable_nodes > 0:
-            # Sum of shortest path distances to all other reachable nodes
-            total_distance = sum(shortest_paths.values())
-            # Closeness centrality formula
-            centrality[node] = (reachable_nodes) / total_distance
-        else:
-            # If the node is isolated, centrality is 0
-            centrality[node] = 0.0
-
-    return centrality
-
-
-from collections import deque, defaultdict
-
-def bfs_paths_and_counts(graph, start_node):
-    """
-    Perform BFS to calculate shortest paths, path counts, and predecessors for a given start node.
-    """
-    distances = {node: float('inf') for node in graph.nodes}  # Initialize distances to infinity
-    paths = {node: 0 for node in graph.nodes}  # Initialize path counts to 0
-    predecessors = {node: [] for node in graph.nodes}  # Initialize predecessors as empty lists
-
-    # BFS initialization
-    distances[start_node] = 0  # Distance to itself is 0
-    paths[start_node] = 1  # One path to itself
-    queue = deque([start_node])  # Start BFS from the start_node
-
+    distances = {node: float('inf') for node in graph.nodes}
+    distances[start_node] = 0
+    queue = deque([start_node])
+    
+    if return_paths:
+        paths = {node: 0 for node in graph.nodes}
+        paths[start_node] = 1
+        predecessors = {node: [] for node in graph.nodes}
+    
     while queue:
         current_node = queue.popleft()
         current_distance = distances[current_node]
-
+        
         for neighbor in graph.neighbors(current_node):
-            # If visiting the neighbor for the first time
-            if distances[neighbor] == float('inf'):
+            if distances[neighbor] == float('inf'):  # First visit
                 distances[neighbor] = current_distance + 1
                 queue.append(neighbor)
-
-            # If this is part of a shortest path
-            if distances[neighbor] == current_distance + 1:
+            
+            if return_paths and distances[neighbor] == current_distance + 1:
                 paths[neighbor] += paths[current_node]
                 predecessors[neighbor].append(current_node)
+    
+    if return_paths:
+        return distances, paths, predecessors
+    else:
+        return distances
 
-    return distances, paths, predecessors
-
+def compute_closeness_centrality(graph):
+    """
+    Computes closeness centrality for all nodes in a graph using the modular BFS.
+    """
+    centrality = {}
+    num_nodes = len(graph)
+    
+    for node in graph.nodes:
+        shortest_paths = bfs(graph, node)  # Only distances are needed
+        reachable_nodes = sum(1 for dist in shortest_paths.values() if dist < float('inf')) - 1
+        
+        if reachable_nodes > 0:
+            total_distance = sum(dist for dist in shortest_paths.values() if dist < float('inf'))
+            centrality[node] = reachable_nodes / total_distance
+        else:
+            centrality[node] = 0.0
+    
+    return centrality
 
 def compute_betweenness_centrality(graph):
     """
-    Computes the betweenness centrality for all nodes in a graph.
+    Computes betweenness centrality for all nodes in a graph using the modular BFS.
     """
-    centrality = {node: 0.0 for node in graph}
-    for source in graph:
-        shortest_paths, path_counts, predecessors = bfs_paths_and_counts(graph, source)
-        dependency = {node: 0.0 for node in graph}
-        nodes_by_distance = sorted(shortest_paths.keys(), key=lambda x: -shortest_paths[x])
-
-        for node in nodes_by_distance:
-            for predecessor in predecessors[node]:
-                ratio = path_counts[predecessor] / path_counts[node]
-                dependency[predecessor] += ratio * (1 + dependency[node])
+    centrality = {node: 0.0 for node in graph.nodes}
+    
+    for source in graph.nodes:
+        distances, paths, predecessors = bfs(graph, source, return_paths=True)
+        dependency = {node: 0.0 for node in graph.nodes}
+        sorted_nodes = sorted(distances, key=lambda x: -distances[x])
+        
+        for node in sorted_nodes:
+            for pred in predecessors[node]:
+                ratio = paths[pred] / paths[node]
+                dependency[pred] += ratio * (1 + dependency[node])
             if node != source:
                 centrality[node] += dependency[node]
-
-    # Normalize
+    
     num_nodes = len(graph)
-    normalization_factor = (num_nodes - 1) * (num_nodes - 2)
-    for node in centrality:
-        centrality[node] /= normalization_factor if normalization_factor > 0 else 1
-
+    normalization = (num_nodes - 1) * (num_nodes - 2)
+    if normalization > 0:
+        for node in centrality:
+            centrality[node] /= normalization
+    
     return centrality
 
 def compute_pagerank(graph, damping_factor=0.85, max_iterations=100, tolerance=1e-6):
