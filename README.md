@@ -19,7 +19,7 @@ Welcome to the **ADM-HW5** project! This repository contains the solution to the
 
 ---
 ## Note to TA's and reviewers!!!
-Our Nbviewer [main.ipynb](https://nbviewer.org/github/khalmatay/ADM-HW5/blob/main/main.ipynb)
+Our Nbviewer [main.ipynb](https://nbviewer.org/github/khalmatay/ADM-HW5/blob/main/main.ipynb) (Doesn't show text in 4,5 bonus part)
 
 Our Map [random_flight_network_map.html](https://khalmatay.github.io/)
 
