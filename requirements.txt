@@ -3,4 +3,6 @@ folium
 kagglehub
 networkx~=3.4.2
 matplotlib~=3.9.2
-numpy
+numpy~=2.1.2
+pyspark
+graphframes
